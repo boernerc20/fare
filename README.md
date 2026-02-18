@@ -60,7 +60,7 @@ AMADEUS_API_SECRET=your_api_secret_here
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000) (no domain yet...)
 
 ## Project structure
 
