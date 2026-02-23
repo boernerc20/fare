@@ -11,7 +11,7 @@ export default function Header() {
   useEffect(() => setMounted(true), []);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 border-b border-border/50 bg-background/80 backdrop-blur-md">
+    <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 sm:px-6 lg:px-10 py-4 border-b border-border/50 bg-background/80 backdrop-blur-md">
       {/* Wordmark */}
       <div className="flex items-center gap-2">
         <span className="text-lg font-semibold tracking-tight text-foreground">

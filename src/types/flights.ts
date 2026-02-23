@@ -76,8 +76,15 @@ export interface AirportSuggestion {
   name: string;
   cityName: string;
   countryCode: string;
+  subType: "AIRPORT" | "CITY";
   lat?: number;
   lon?: number;
+}
+
+/** A city with its known airports grouped beneath it */
+export interface AirportGroup {
+  city: AirportSuggestion;
+  airports: AirportSuggestion[];
 }
 
 export interface AirportCoords {

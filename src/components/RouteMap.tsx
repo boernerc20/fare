@@ -2,6 +2,7 @@
 
 import "leaflet/dist/leaflet.css";
 import { useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
 import { useTheme } from "next-themes";
@@ -48,6 +49,83 @@ function FitBounds({ origin, dest }: { origin: AirportCoords; dest: AirportCoord
   return null;
 }
 
+// Calls invalidateSize() whenever the map container is resized (e.g. expand animation).
+// Fixes tile gaps and clipped route lines after height transitions.
+function MapResizer() {
+  const map = useMap();
+  useEffect(() => {
+    const el = map.getContainer();
+    const observer = new ResizeObserver(() => {
+      map.invalidateSize({ animate: false });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [map]);
+  return null;
+}
+
+// Custom zoom buttons rendered as a React portal inside the map container.
+// Styled to match the current theme; uses 0.5-step zoom for fluid feel.
+function ZoomButtons({ isDark, arcColor }: { isDark: boolean; arcColor: string }) {
+  const map = useMap();
+  const container = map.getContainer();
+
+  const bg = isDark ? "#0b0f1a" : "#ffffff";
+  const border = `1px solid ${arcColor}50`;
+  const btnStyle: React.CSSProperties = {
+    width: 28,
+    height: 28,
+    background: bg,
+    border,
+    color: arcColor,
+    borderRadius: 6,
+    cursor: "pointer",
+    fontSize: 18,
+    fontWeight: 500,
+    lineHeight: 1,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "opacity 0.15s",
+    fontFamily: "system-ui, sans-serif",
+  };
+
+  return createPortal(
+    <div
+      style={{
+        position: "absolute",
+        top: 10,
+        right: 10,
+        zIndex: 1000,
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+        pointerEvents: "auto",
+      }}
+    >
+      <button
+        style={btnStyle}
+        title="Zoom in"
+        onClick={(e) => { e.stopPropagation(); map.zoomIn(0.5); }}
+        onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.75")}
+        onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+      >
+        +
+      </button>
+      <button
+        style={btnStyle}
+        title="Zoom out"
+        onClick={(e) => { e.stopPropagation(); map.zoomOut(0.5); }}
+        onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.75")}
+        onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+      >
+        −
+      </button>
+    </div>,
+    container
+  );
+}
+
 interface Props {
   origin: AirportCoords;
   destination: AirportCoords;
@@ -62,15 +140,12 @@ export default function RouteMap({ origin, destination }: Props) {
     [origin.lat, origin.lon, destination.lat, destination.lon]
   );
 
-  // Tile layers: CartoDB — clean, free, no API key
   const tileUrl = isDark
     ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
     : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
 
-  // Arc colour comes from CSS brand tokens
-  const arcColor = isDark ? "#22d3ee" : "#f97316"; // cyan in dark, amber in light
+  const arcColor = isDark ? "#22d3ee" : "#f97316";
 
-  // Custom dot markers (avoids leaflet's broken default icon in Next.js)
   const dotIcon = useMemo(() => L.divIcon({
     className: "",
     html: `<div style="
@@ -83,7 +158,6 @@ export default function RouteMap({ origin, destination }: Props) {
     iconAnchor: [5, 5],
   }), [arcColor, isDark]);
 
-  // Label icons for IATA codes
   const makeLabel = (code: string, city: string) => L.divIcon({
     className: "",
     html: `<div style="
@@ -116,13 +190,24 @@ export default function RouteMap({ origin, destination }: Props) {
       zoom={4}
       className="w-full h-full"
       zoomControl={false}
-      scrollWheelZoom={false}
+      scrollWheelZoom={true}
       attributionControl={false}
+      // 0.5-step zoom for fluid feel
+      zoomSnap={0.5}
+      zoomDelta={0.5}
+      wheelPxPerZoomLevel={120}
     >
       {/* Re-key on theme change to swap tile layer cleanly */}
-      <TileLayer key={tileUrl} url={tileUrl} />
+      <TileLayer
+        key={tileUrl}
+        url={tileUrl}
+        // Load 4 extra tile rows/cols beyond the viewport to minimise white gaps
+        keepBuffer={4}
+      />
 
       <FitBounds origin={origin} dest={destination} />
+      <MapResizer />
+      <ZoomButtons isDark={isDark} arcColor={arcColor} />
 
       {/* Glow halo */}
       <Polyline

@@ -81,7 +81,7 @@ export default function FlightCard({ offer, carriers, rank }: Props) {
   const cabin = offer.travelerPricings[0]?.fareDetailsBySegment[0]?.cabin ?? "";
 
   return (
-    <div className="group bg-card border border-border rounded-2xl p-5 hover:border-primary/30 hover:shadow-md transition-all duration-200">
+    <div className="group bg-card border border-border rounded-2xl p-4 md:p-5 xl:p-6 hover:border-primary/30 hover:shadow-md transition-all duration-200">
       <div className="flex flex-col gap-4">
         {rank === 0 && (
           <div className="self-start">

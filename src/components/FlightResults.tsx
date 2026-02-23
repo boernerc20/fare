@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import FlightCard from "@/components/FlightCard";
 import type { FlightSearchResponse } from "@/types/flights";
 
@@ -10,27 +10,32 @@ interface Props {
 
 type SortKey = "price" | "duration" | "departure";
 
+function itinMins(itin: FlightSearchResponse["data"][0]["itineraries"][0]): number {
+  const m = itin.duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?/);
+  return parseInt(m?.[1] ?? "0") * 60 + parseInt(m?.[2] ?? "0");
+}
+
 export default function FlightResults({ results }: Props) {
   const [sort, setSort] = useState<SortKey>("price");
 
   const carriers = results.dictionaries?.carriers ?? {};
 
-  const sorted = [...results.data].sort((a, b) => {
-    if (sort === "price") {
-      return parseFloat(a.price.grandTotal) - parseFloat(b.price.grandTotal);
-    }
-    if (sort === "departure") {
-      const aTime = a.itineraries[0].segments[0].departure.at;
-      const bTime = b.itineraries[0].segments[0].departure.at;
-      return aTime.localeCompare(bTime);
-    }
-    const mins = (offer: typeof a) =>
-      offer.itineraries.reduce((acc, itin) => {
-        const m = itin.duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?/);
-        return acc + parseInt(m?.[1] ?? "0") * 60 + parseInt(m?.[2] ?? "0");
-      }, 0);
-    return mins(a) - mins(b);
-  });
+  const sorted = useMemo(() => {
+    return [...results.data].sort((a, b) => {
+      if (sort === "price") {
+        return parseFloat(a.price.grandTotal) - parseFloat(b.price.grandTotal);
+      }
+      if (sort === "departure") {
+        return a.itineraries[0].segments[0].departure.at.localeCompare(
+          b.itineraries[0].segments[0].departure.at
+        );
+      }
+      // duration: sum all itinerary legs (covers round-trips)
+      const totalA = a.itineraries.reduce((acc, i) => acc + itinMins(i), 0);
+      const totalB = b.itineraries.reduce((acc, i) => acc + itinMins(i), 0);
+      return totalA - totalB;
+    });
+  }, [results.data, sort]);
 
   const count = results.meta?.count ?? results.data.length;
 
